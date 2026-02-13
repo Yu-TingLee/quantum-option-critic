@@ -1,26 +1,50 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PYTHON=${PYTHON:-python}
-SCRIPT=${SCRIPT:-option_critic_run.py}
-COMMON_ARGS=${COMMON_ARGS:-""}  # e.g. "--env CartPole-v1 --seed 0"
-
-runs=(
-  # ""
-  "--Qoption"
-  "--Qhead"
-  "--Qfeats"
-  "--Qterm"
-  # "--Qfeats --Qhead"
-  # "--Qfeats --Qoption"
-  # "--Qhead --Qoption"
-  # "--Qfeats --Qhead --Qoption"
+ENVS=(
+  "CartPole-v1"
 )
 
-for flags in "${runs[@]}"; do
-  echo "Running: ${PYTHON} ${SCRIPT} ${COMMON_ARGS} ${flags}"
-  # shellcheck disable=SC2086
-  ${PYTHON} ${SCRIPT} ${COMMON_ARGS} ${flags}
+MODELS=(
+  ""  # Classical
+  "--Qfeats"
+  "--Qhead"
+  "--Qterm"
+  "--Qoption"
+  "--Qfeats --Qhead"
+  "--Qfeats --Qterm"
+  "--Qfeats --Qoption"
+  "--Qhead --Qhead_scaling"
+  "--Qfeats --Qhead --Qterm --Qoption"
+)
+
+NUM_OPTIONS=(
+  3
+  4
+)
+
+for seed in {0..9}; do
+  for env in "${ENVS[@]}"; do
+    python random_run.py --env "${env}" --seed "${seed}"
+  done
+done
+
+for seed in {0..9}; do
+  for model in "${MODELS[@]}"; do
+    for env in "${ENVS[@]}"; do
+      python option_critic_run.py --env "${env}" ${model} --seed "${seed}"
+    done
+  done
+done
+
+for seed in {0..9}; do
+  for model in "${MODELS[@]}"; do
+    for env in "${ENVS[@]}"; do
+      for num_options in "${NUM_OPTIONS[@]}"; do
+        python option_critic_run.py --env "${env}" ${model} --num-options "${num_options}" --seed "${seed}" --exp="-Op${num_options}"
+      done
+    done
+  done
 done
 
 python plot.py

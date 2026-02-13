@@ -60,5 +60,5 @@ class VQC(nn.Module):
         self.circuit = circuit
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        exp_vals = self.circuit(x, self.theta) 
+        exp_vals = self.circuit(x, self.theta)
         return torch.stack([p for p in exp_vals], dim=1)

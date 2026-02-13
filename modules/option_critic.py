@@ -202,5 +202,6 @@ class QuantumHead(nn.Module):
         out = qfeat[:, :self.out_dim]
         if self.Qhead_scaling:
             out = (out * self.scaling) + self.bias
+            return out
         else:
             return out

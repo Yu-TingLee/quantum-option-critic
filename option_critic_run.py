@@ -152,7 +152,17 @@ def run(args):
             curr_op_len += 1
             obs = next_obs
 
-            logger.log_data(steps, actor_loss, critic_loss, entropy.item(), epsilon)
+            # Extract scaling parameters if they exist
+            q_scaling = None
+            q_bias = None
+            if args.Qhead_scaling and hasattr(option_critic.Q, 'scaling'):
+                # Detach from graph and convert to numpy array
+                q_scaling = option_critic.Q.scaling.detach().cpu().numpy()
+                q_bias = option_critic.Q.bias.detach().cpu().numpy()
+
+            logger.log_data(steps, actor_loss, critic_loss, entropy.item(), epsilon, 
+                            qhead_scaling=q_scaling, qhead_bias=q_bias)
+        option_lengths[current_option].append(curr_op_len)
         print(f"Total Steps: {steps} | Episode: {logger.n_eps} | Return: {rewards:.2f} | Epsilon: {epsilon:.4f}")
         logger.log_episode(steps, rewards, option_lengths, ep_steps, epsilon)
 
@@ -163,7 +173,7 @@ if __name__ == "__main__":
     parser.add_argument('--env', default='CartPole-v1')
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--logdir', default='runs')
-    parser.add_argument('--exp', default="")
+    parser.add_argument('--exp', type=str, default='')
     # parser.add_argument('--switch_goal', action="store_true")
     
     # Training Params

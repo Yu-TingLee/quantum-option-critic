@@ -11,4 +11,4 @@ Run all the experiments:
 ```sh
 bash run.sh
 ```
-Logs are saved to `outputs/<model>`; plots are saved in `plots/`.
+Logs are saved to `runs/`; plots are saved in `plots/`.
