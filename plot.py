@@ -68,7 +68,7 @@ def get_data(runs_dir):
 # Load Data
 df = get_data('runs')
 
-df['total_steps_binned'] = (df['total_steps'] // 1000) * 1000
+df['total_steps_binned'] = (df['total_steps'] // 500) * 500
 
 # Group by Bin -> Calculate Mean/Std of raw data
 df_step_stats = df.groupby(['total_steps_binned', 'model_name', 'env_name'])['episodic_reward'].agg(['mean', 'std']).reset_index()
@@ -100,14 +100,8 @@ df_ep_stats['std_smooth'] = df_ep_stats.groupby(['model_name', 'env_name'])['std
 os.makedirs('plots', exist_ok=True)
 sns.set_theme(style="whitegrid")
 
-# Generate a fixed color palette for models
-unique_models = df['model_name'].unique()
-p1 = sns.color_palette("tab10")
-p2 = sns.color_palette("Set1")
-palette = p1 + p2
-# palette = sns.color_palette("tab20", n_colors=len(unique_models))
-color_map = dict(zip(unique_models, palette))
 
+palette = sns.color_palette("Set1")
 unique_envs = df['env_name'].unique()
 
 for env_name in unique_envs:
@@ -155,7 +149,7 @@ for env_name in unique_envs:
                 if subset.empty:
                     continue
                 
-                color = color_map.get(model, 'black')
+                color = palette[model_list.index(model) % len(palette)]
                 
                 ax.plot(
                     subset[x_col], 
