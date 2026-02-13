@@ -4,7 +4,10 @@ Specifically, hybrid quantum-classical agents based on the option-critic framewo
 
 ## Overview
 - **option_critic_run.py**: Main training script for option-critic.
-- **modules/**: Contains VQC and option-critic modules.
+- **random_run.py**: Runs random baseline.
+- **modules/**: Contains modules for VQCs, option-critic and experience replay.
+- **plot.py**: Plots learning curves (reward vs. steps; reward vs. episodes).
+- **plot_arch.py**: Plots the model architecture.
 - **utils.py**: Utilities.
 
 Run all the experiments:

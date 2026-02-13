@@ -2,5 +2,3 @@ __pycache__/
 modules/__pycache__/
 runs/
 plots/
-summary.md
-plot_arch.py

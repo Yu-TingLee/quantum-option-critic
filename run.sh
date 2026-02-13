@@ -23,6 +23,8 @@ NUM_OPTIONS=(
   4
 )
 
+python plot_arch.py
+
 for seed in {0..9}; do
   for env in "${ENVS[@]}"; do
     python random_run.py --env "${env}" --seed "${seed}"
