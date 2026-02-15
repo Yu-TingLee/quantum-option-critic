@@ -47,11 +47,11 @@ def run(args):
     tags = ""
     if args.Qfeats: tags += "F"    # Features
     if args.Qhead and not args.Qhead_scaling:  
-        tags += "H"                # Head
+        tags += "O"                # Option-Value Head
     elif args.Qhead and args.Qhead_scaling:
-        tags += "SH"               # Q-head Scaling
+        tags += "AO"               # Option-Value, Affine Transformed
     if args.Qterm:  tags += "T"    # Terminations
-    if args.Qoption:  tags += "O"  # Options
+    if args.Qoption:  tags += "P"  # Intra-Option Policies
     
     if tags:
         run_config = f"Hybrid_{tags}" 

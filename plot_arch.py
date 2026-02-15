@@ -29,7 +29,6 @@ def main():
     # --- Input ---
     g.node("input", f"Input obs\\nshape: (B,{args.in_features})", fillcolor=C_CARD)
 
-    # --- Features block ---
     with g.subgraph(name="cluster_features") as c:
         c.attr(label="Feature Trunk", color=C_BORDER, fontcolor="#344762", style="rounded,dashed", fontsize="12", labeljust="c")
         c.attr("node", fillcolor=C_FEATURES)
@@ -41,9 +40,12 @@ def main():
 
     g.edge("input", "feat_lin1")
 
-    # --- Heads ---
     with g.subgraph(name="cluster_q") as c:
-        c.attr(label="Q-Head", color=C_BORDER, fontcolor="#334155", style="rounded,dashed", fontsize="12")
+        c.attr(label="Option-Value Head", 
+           color=C_BORDER, 
+           fontcolor="#334155", 
+           style="rounded,dashed", 
+           fontsize="12")
         c.attr("node", fillcolor=C_QHEAD)
         c.node("q_head", f"Head\\n(B,4) → (B,{args.num_options})")
         c.node("q_out",  f"Output Q\\n(B,{args.num_options})", fillcolor=C_CARD)

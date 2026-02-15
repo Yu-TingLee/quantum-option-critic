@@ -11,13 +11,13 @@ TARGET_ENVS = None
 
 PLOT_GROUPS = {
     "Group_1": [
-        "Random", "Classical", "Hybrid_FHTO", "Hybrid_FH", "Hybrid_FT", "Hybrid_FO"
+        "Random", "Classical", "Hybrid_FOTP", "Hybrid_FO", "Hybrid_FT", "Hybrid_FP"
     ],
     "Group_2": [
-        "Random", "Classical", "Hybrid_F", "Hybrid_H", "Hybrid_T", "Hybrid_O"
+        "Random", "Classical", "Hybrid_F", "Hybrid_O", "Hybrid_T", "Hybrid_P"
     ],
     "Group_3": [
-        "Random", "Classical", "Hybrid_SH", "Hybrid_H"
+        "Random", "Classical", "Hybrid_AO", "Hybrid_O"
     ],
     "Options": [
         "Classical", "Classical-Op3", "Classical-Op4"
