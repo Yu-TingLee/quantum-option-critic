@@ -45,7 +45,7 @@ class Logger:
             self.writer.add_scalar(f"option_{option}_avg_length", np.mean(lens) if len(lens) > 0 else 0, self.n_eps)
             self.writer.add_scalar(f"option_{option}_active", (sum(lens) / ep_steps) if ep_steps > 0 else 0, self.n_eps)
 
-    def log_data(self, step, actor_loss, critic_loss, entropy, epsilon, qhead_scaling=None, qhead_bias=None):
+    def log_data(self, step, actor_loss, critic_loss, entropy, epsilon, qhead_weight=None, qhead_bias=None):
         # tensorboard
         if actor_loss is not None:
             self.writer.add_scalar("actor_loss", actor_loss.item(), step)
@@ -53,12 +53,10 @@ class Logger:
             self.writer.add_scalar("critic_loss", critic_loss.item(), step)
         self.writer.add_scalar("policy_entropy", entropy, step)
         self.writer.add_scalar("epsilon", epsilon, step)
-        if qhead_scaling is not None:
-            # qhead_scaling is shape (1, num_options)
-            for i, val in enumerate(qhead_scaling[0]):
+        if qhead_weight is not None:
+            for i, val in enumerate(qhead_weight[0]):
                 self.writer.add_scalar(f"Qhead_scaling_a/option_{i}", val, step)
         
         if qhead_bias is not None:
-            # qhead_bias is shape (1, num_options)
             for i, val in enumerate(qhead_bias[0]):
                 self.writer.add_scalar(f"Qhead_bias_b/option_{i}", val, step)

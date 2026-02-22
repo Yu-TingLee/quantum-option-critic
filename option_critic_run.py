@@ -18,25 +18,26 @@ def run(args):
     env = make_env(args.env)
 
     device = torch.device('cpu')
-    
     option_critic = OptionCriticFeatures(
         in_features=env.observation_space.shape[0],
         num_actions=env.action_space.n,
+        env_name = args.env,
+        n_qubits = env.observation_space.shape[0],
         num_options=args.num_options,
         Qfeats=args.Qfeats,
         Qhead=args.Qhead,
         Qterm=args.Qterm,
         Qoption=args.Qoption,
-        Qhead_scaling=args.Qhead_scaling
+        Qhead_affine=args.Qhead_affine
     )
     
     print_param(option_critic)
-    plot_circuits(option_critic, env.observation_space.shape, device)
+    plot_circuits(option_critic, env.observation_space.shape, device, env_name=args.env)
     
     # Global seeding
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-    # seed the env via reset(seed=...) on the first reset
+    # seed the env
     if hasattr(env, "action_space") and env.action_space is not None:
         env.action_space.seed(args.seed)
     if hasattr(env, "observation_space") and env.observation_space is not None:
@@ -46,9 +47,9 @@ def run(args):
     
     tags = ""
     if args.Qfeats: tags += "F"    # Features
-    if args.Qhead and not args.Qhead_scaling:  
+    if args.Qhead and not args.Qhead_affine:  
         tags += "O"                # Option-Value Head
-    elif args.Qhead and args.Qhead_scaling:
+    elif args.Qhead and args.Qhead_affine:
         tags += "AO"               # Option-Value, Affine Transformed
     if args.Qterm:  tags += "T"    # Terminations
     if args.Qoption:  tags += "P"  # Intra-Option Policies
@@ -67,8 +68,6 @@ def run(args):
     optim = torch.optim.Adam(option_critic.parameters(), lr=args.learning_rate)
     
     steps = 0
-    # if args.switch_goal:
-    #     print(f"Current goal {env.goal}")
     
     while steps < args.max_steps_total:
         rewards = 0
@@ -80,21 +79,6 @@ def run(args):
         greedy_option = option_critic.greedy_option(state)
         current_option = 0
 
-        # Goal switching experiment
-        # if args.switch_goal and logger.n_eps == 1000:
-        #     torch.save(
-        #         {'model_params': option_critic.state_dict(), 'goal_state': env.goal},
-        #         f'models/option_critic_seed={args.seed}_1k'
-        #     )
-        #     env.switch_goal()
-        #     print(f"New goal {env.goal}")
-
-        # if args.switch_goal and logger.n_eps > 2000:
-        #     torch.save(
-        #         {'model_params': option_critic.state_dict(), 'goal_state': env.goal},
-        #         f'models/option_critic_seed={args.seed}_2k'
-        #     )
-        #     break
 
         done = False
         ep_steps = 0
@@ -152,16 +136,16 @@ def run(args):
             curr_op_len += 1
             obs = next_obs
 
-            # Extract scaling parameters if they exist
-            q_scaling = None
+            # Extract affine trans. parameters if they exist
+            q_weight = None
             q_bias = None
-            if args.Qhead_scaling and hasattr(option_critic.Q, 'scaling'):
+            if args.Qhead_affine:
                 # Detach from graph and convert to numpy array
-                q_scaling = option_critic.Q.scaling.detach().cpu().numpy()
+                q_weight = option_critic.Q.weight.detach().cpu().numpy()
                 q_bias = option_critic.Q.bias.detach().cpu().numpy()
 
             logger.log_data(steps, actor_loss, critic_loss, entropy.item(), epsilon, 
-                            qhead_scaling=q_scaling, qhead_bias=q_bias)
+                            qhead_weight=q_weight, qhead_bias=q_bias)
         option_lengths[current_option].append(curr_op_len)
         print(f"Total Steps: {steps} | Episode: {logger.n_eps} | Return: {rewards:.2f} | Epsilon: {epsilon:.4f}")
         logger.log_episode(steps, rewards, option_lengths, ep_steps, epsilon)
@@ -174,7 +158,6 @@ if __name__ == "__main__":
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--logdir', default='runs')
     parser.add_argument('--exp', type=str, default='')
-    # parser.add_argument('--switch_goal', action="store_true")
     
     # Training Params
     parser.add_argument('--learning-rate', type=float, default=.0005)
@@ -196,6 +179,6 @@ if __name__ == "__main__":
     parser.add_argument("--Qhead", action="store_true", help="Use VQC as Q-head")
     parser.add_argument("--Qterm", action="store_true", help="Use VQC as termination head")
     parser.add_argument("--Qoption", action="store_true", help="Use VQC as intra-option policies")
-    parser.add_argument("--Qhead_scaling", action="store_true", help="Use scaling and bias in Q-head")
+    parser.add_argument("--Qhead_affine", action="store_true", help="Use weight and bias in option-value head")
     
     run(parser.parse_args())

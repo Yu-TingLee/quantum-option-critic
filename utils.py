@@ -6,7 +6,6 @@ from gymnasium.wrappers import FlattenObservation
 from pathlib import Path
 import pennylane as qml
 import matplotlib.pyplot as plt
-from modules.vqc import preprocess_obs
 
 def make_env(env_name):
     env = gym.make(env_name)
@@ -63,7 +62,7 @@ def print_param(model):
 
     rows = [
         row("Feature Trunk", model.Qfeats, model.features),
-        row("Q-Head", model.Qhead, model.Q),
+        row("Option-Value Function", model.Qhead, model.Q),
         row("Terminations", model.Qterm, model.terminations),
         row("Intra-Option Policies", model.Qoption, model.option_policies),
     ]
@@ -78,7 +77,7 @@ def print_param(model):
 
     print("-" * 72)
 
-def plot_circuits(model, obs_shape, device, save_dir="plots"):
+def plot_circuits(model, obs_shape, device, env_name = None, save_dir="plots"):
     Path(save_dir).mkdir(parents=True, exist_ok=True)
     qml.drawer.use_style("black_white")
 
@@ -87,34 +86,28 @@ def plot_circuits(model, obs_shape, device, save_dir="plots"):
         fig.savefig(f"{save_dir}/{name}.png", dpi=300, bbox_inches="tight")
         plt.close(fig)
         print(f"Saved {save_dir}/{name}.png")
-
-    any_vqc = False
-
-    # 1) Feature trunk VQC
-    if hasattr(model.features, "vqc"):
-        any_vqc = True
-        dummy_obs = torch.zeros((1, *obs_shape), dtype=torch.float32, device=device)
-        x = preprocess_obs(dummy_obs).to(dtype=torch.float32)
-        save(model.features.vqc, x, "circuit_Qfeats")
-
+        
     def head_x(vqc):
         s = torch.zeros((1, vqc.n_qubits), dtype=torch.float32, device=device)
         return (torch.pi * torch.tanh(s)).to(dtype=torch.float32)
 
-    # 2) Q-head VQC
+    any_vqc = False
+    
+    if hasattr(model.features, "vqc"):
+        any_vqc = True
+        save(model.features.vqc, head_x(model.features.vqc), f"circuit_Qfeats_{env_name}")
+
     if hasattr(model.Q, "vqc"):
         any_vqc = True
-        save(model.Q.vqc, head_x(model.Q.vqc), "circuit_Qhead")
+        save(model.Q.vqc, head_x(model.Q.vqc), f"circuit_Qhead_{env_name}")
 
-    # 3) Terminations VQC
     if hasattr(model.terminations, "vqc"):
         any_vqc = True
-        save(model.terminations.vqc, head_x(model.terminations.vqc), "circuit_Qterm")
+        save(model.terminations.vqc, head_x(model.terminations.vqc), f"circuit_Qterm_{env_name}")
 
-    # 4) Option policy VQC
     if len(model.option_policies) > 0 and hasattr(model.option_policies[0], "vqc"):
         any_vqc = True
-        save(model.option_policies[0].vqc, head_x(model.option_policies[0].vqc), "circuit_Qoption")
+        save(model.option_policies[0].vqc, head_x(model.option_policies[0].vqc), f"circuit_Qoption_{env_name}")
 
     if not any_vqc:
         print("No VQC modules found to plot.")

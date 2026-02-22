@@ -1,5 +1,5 @@
 # A Quantum Option-Critic Architecture for Reinforcement Learning
-The is the official implementation of the paper: **A Quantum Option-Critic Architecture for Reinforcement Learning**.
+The is the official implementation for the paper: **A Quantum Option-Critic Architecture for Reinforcement Learning**.
 Specifically, hybrid quantum-classical agents based on the option-critic framework are implemented.
 
 ## Overview

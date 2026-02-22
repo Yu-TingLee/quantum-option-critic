@@ -3,12 +3,14 @@ import torch.nn as nn
 from torch.distributions import Categorical, Bernoulli
 from math import exp
 from utils import to_tensor
-from modules.vqc import VQC, preprocess_obs
+from modules.vqc import VQC, Preprocessor
 
 class OptionCriticFeatures(nn.Module):
     def __init__(self,
                 in_features,
                 num_actions,
+                env_name,
+                n_qubits = 4,
                 num_options = 2,
                 temperature=1.0,
                 eps_start=1.0,
@@ -18,7 +20,7 @@ class OptionCriticFeatures(nn.Module):
                 Qhead=False,
                 Qterm=False,
                 Qoption=False,
-                Qhead_scaling=False):
+                Qhead_affine=False):
 
         super(OptionCriticFeatures, self).__init__()
 
@@ -38,31 +40,31 @@ class OptionCriticFeatures(nn.Module):
         self.Qoption = Qoption
         
         if self.Qfeats:
-            self.features = QuantumFeatureTrunk(layers = 6)
+            self.features = QuantumFeatureTrunk(layers = 6, n_qubits=n_qubits, env_name=env_name)
         else:
             self.features = nn.Sequential(
                 nn.Linear(in_features, 8),
                 nn.ReLU(),
-                nn.Linear(8, 4)
+                nn.Linear(8, in_features)
             )
                     
         if self.Qhead:
-            self.Q = QuantumHead(layers = 1, out_dim = num_options, Qhead_scaling=Qhead_scaling)
+            self.Q = QuantumHead(layers = 1, out_dim = num_options, Qhead_affine=Qhead_affine, n_qubits=n_qubits)
         else:
-            self.Q = nn.Linear(4, num_options)
+            self.Q = nn.Linear(in_features, num_options)
 
         if self.Qterm:
-            self.terminations = QuantumHead(layers = 1, out_dim = num_options)
+            self.terminations = QuantumHead(layers = 1, out_dim = num_options, n_qubits=n_qubits)
         else:
-            self.terminations = nn.Linear(4, num_options)
+            self.terminations = nn.Linear(in_features, num_options)
             
         if self.Qoption:
             self.option_policies = nn.ModuleList([
-                QuantumHead(layers = 1, out_dim = num_actions) for _ in range(num_options)
+                QuantumHead(layers = 1, out_dim = num_actions, n_qubits=n_qubits) for _ in range(num_options)
             ])
         else:
             self.option_policies = nn.ModuleList([
-                nn.Linear(4, num_actions) for _ in range(num_options)
+                nn.Linear(in_features, num_actions) for _ in range(num_options)
             ])
             
         self.to(self.device)
@@ -163,9 +165,10 @@ class QuantumFeatureTrunk(nn.Module):
     """
     obs -> preprocess_obs -> VQC -> (B,4)
     """
-    def __init__(self, layers = 2, n_qubits = 4):
+    def __init__(self, layers = 6, n_qubits = 4, env_name = None):
         super().__init__()
         self.device = torch.device("cpu")
+        self.preprocessor = Preprocessor(env_name)
         self.vqc = VQC(n_qubits, layers, self.device)
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
@@ -173,8 +176,8 @@ class QuantumFeatureTrunk(nn.Module):
             obs = obs.unsqueeze(0)
 
         obs = obs.to(self.device, dtype=torch.float32)
-
-        x = preprocess_obs(obs) # angles in [-pi, pi]
+        x = self.preprocessor(obs)
+            
         qfeat = self.vqc(x).to(dtype=torch.float32) # (B,4)
         return qfeat
 
@@ -182,15 +185,15 @@ class QuantumHead(nn.Module):
     """
     states(in_dim) ->  VQC -> (B, out_dim)
     """
-    def __init__(self, n_qubits = 4, layers = 1, out_dim = 2, Qhead_scaling=False):
+    def __init__(self, n_qubits = 4, layers = 1, out_dim = 2, Qhead_affine=False):
         super().__init__()
         self.device = torch.device("cpu")
         self.vqc = VQC(n_qubits, layers, self.device)
         self.out_dim = out_dim
-        self.Qhead_scaling = Qhead_scaling
+        self.Qhead_affine = Qhead_affine
         
-        if self.Qhead_scaling:
-            self.scaling = nn.Parameter(torch.ones(1, out_dim))
+        if self.Qhead_affine:
+            self.weight = nn.Parameter(torch.ones(1, out_dim))
             self.bias = nn.Parameter(torch.zeros(1, out_dim))
 
     def forward(self, state: torch.Tensor) -> torch.Tensor:
@@ -200,8 +203,8 @@ class QuantumHead(nn.Module):
         angles = 2.0 * torch.atan(x)
         qfeat = self.vqc(angles).to(dtype=torch.float32)
         out = qfeat[:, :self.out_dim]
-        if self.Qhead_scaling:
-            out = (out * self.scaling) + self.bias
+        if self.Qhead_affine:
+            out = (out * self.weight) + self.bias
             return out
         else:
             return out

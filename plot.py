@@ -7,7 +7,7 @@ import matplotlib.ticker as ticker
 from collections import defaultdict
 from tensorboard.backend.event_processing import event_accumulator
 
-TARGET_ENVS = None
+PLOT_ENVS = ["CartPole-v1", "Acrobot-v1"]
 
 PLOT_GROUPS = {
     "Group_1": [
@@ -17,12 +17,14 @@ PLOT_GROUPS = {
         "Random", "Classical", "Hybrid_F", "Hybrid_O", "Hybrid_T", "Hybrid_P"
     ],
     "Group_3": [
-        "Random", "Classical", "Hybrid_AO", "Hybrid_O"
+        "Random", "Classical", "Hybrid_AO"
     ],
     "Options": [
-        "Classical", "Classical-Op3", "Classical-Op4"
+        "Classical", "Classical-Op3", "Classical-Op4", "Hybrid_AO", "Hybrid_AO-Op3", "Hybrid_AO-Op4"
     ]
 }
+
+PLOT_MODELS = {model for group in PLOT_GROUPS.values() for model in group}
 
 def get_data(runs_dir):
     all_data = []
@@ -37,13 +39,16 @@ def get_data(runs_dir):
         
         env_name = parts[1]
         model_name = "_".join(parts[2:])
-        run_counts[(env_name, model_name)] += 1
-        # Filter envs early if specific targets are set
-        if TARGET_ENVS and env_name not in TARGET_ENVS:
+        
+        # Filter envs and models early
+        if env_name not in PLOT_ENVS:
             continue
+        if model_name not in PLOT_MODELS:
+            continue
+        run_counts[(env_name, model_name)] += 1
 
         event_files = glob.glob(os.path.join(folder, "events.out.tfevents.*"))
-        print(f"Processing Model: {model_name} | Env: {env_name}")
+        print(f"Processing ({model_name}, {env_name})")
         
         for f in event_files:
             ea = event_accumulator.EventAccumulator(f, size_guidance=size_guidance)
@@ -140,9 +145,9 @@ for env_name in unique_envs:
         # Print formatted results
         print(stats[['avg_episodes', 'episodes_std', 'avg_reward', 'performance']].to_string(float_format="{:.2f}".format))
         print("="*50 + "\n")
-
+            
         def plot_group(data, x_col, y_col, err_col, filename, x_label, x_limit=None, x_formatter=None):
-            fig, ax = plt.subplots(figsize=(7, 3))
+            fig, ax = plt.subplots(figsize=(3, 2.5))
             
             for model in model_list:
                 subset = data[data['model_name'] == model]
@@ -169,9 +174,10 @@ for env_name in unique_envs:
                 )
 
             # Formatting
-            ax.set_title(f"{env_name}", fontsize=14)
-            ax.set_xlabel(x_label, fontsize=12)
-            ax.set_ylabel('Episodic Reward', fontsize=12)
+            ax.set_title(f"{env_name}", fontsize=10)
+            ax.set_xlabel(x_label, fontsize=8)
+            ax.set_ylabel('Episodic Reward', fontsize=8)
+            ax.tick_params(axis='both', which='major', labelsize=8)
             if x_limit:
                 ax.set_xlim(0, x_limit)
             ax.set_ylim(0, 550)
@@ -179,9 +185,11 @@ for env_name in unique_envs:
             if x_formatter:
                 ax.xaxis.set_major_locator(ticker.FixedLocator([0, 200000, 400000, 600000, 800000, 1000000]))
                 ax.xaxis.set_major_formatter(x_formatter)
+                ax.xaxis.get_offset_text().set_fontsize(8)
             
             plt.legend(loc='upper left', fontsize=5, framealpha=0.8)
-            plt.savefig(os.path.join('plots', filename), dpi=600, bbox_inches='tight')
+            plt.tight_layout(pad=0.1)
+            plt.savefig(os.path.join('plots', filename), dpi=600, bbox_inches='tight', pad_inches=0.02)
             plt.close()
 
         # Reward vs Total Steps
@@ -201,15 +209,15 @@ for env_name in unique_envs:
         )
 
         # Reward vs Episode (4000)
-        plot_group(
-            data=env_ep_data,
-            x_col='episode',
-            y_col='mean_smooth',
-            err_col='std_smooth',
-            filename=f"{env_name}_{group_name}_reward_vs_episode_4000.png",
-            x_label='Episode',
-            x_limit=4000
-        )
+        # plot_group(
+        #     data=env_ep_data,
+        #     x_col='episode',
+        #     y_col='mean_smooth',
+        #     err_col='std_smooth',
+        #     filename=f"{env_name}_{group_name}_reward_vs_episode_4000.png",
+        #     x_label='Episode',
+        #     x_limit=4000
+        # )
 
         # Reward vs Episode (2000)
         plot_group(

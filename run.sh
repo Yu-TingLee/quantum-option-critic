@@ -3,6 +3,7 @@ set -euo pipefail
 
 ENVS=(
   "CartPole-v1"
+  "Acrobot-v1"
 )
 
 MODELS=(
@@ -14,7 +15,7 @@ MODELS=(
   "--Qfeats --Qhead"
   "--Qfeats --Qterm"
   "--Qfeats --Qoption"
-  "--Qhead --Qhead_scaling"
+  "--Qhead --Qhead_affine"
   "--Qfeats --Qhead --Qterm --Qoption"
 )
 

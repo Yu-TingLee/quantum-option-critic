@@ -2,28 +2,64 @@ import torch
 import torch.nn as nn
 import pennylane as qml
 
-def preprocess_obs(obs):
+class Preprocessor(nn.Module):
     """
-    Normalize obs into [-pi, pi].
+    Normalize continuous obs into [-pi, pi]. Booleans are normalized to {0,pi}.
     """
-    if obs.dim() == 1:
-        obs = obs.unsqueeze(0)
+    def __init__(self, env_name):
+        super().__init__()
+        self.env_name = env_name
+        
+    def forward(self, obs: torch.Tensor) -> torch.Tensor:
+        if self.env_name == 'CartPole-v1':
+            return self._cartpole(obs)
+        elif self.env_name == 'Acrobot-v1':
+            return self._acrobot(obs)
+        elif self.env_name == 'LunarLander-v3':
+            return self._lunarlander(obs)
+        else:
+            assert False, f"Preprocessing not defined for env {self.env_name}"
+        
+    def _cartpole(self, obs):
+        o1, o2, o3, o4 = obs[:, 0], obs[:, 1], obs[:, 2], obs[:, 3]
 
-    o1, o2, o3, o4 = obs[:, 0], obs[:, 1], obs[:, 2], obs[:, 3]
+        y1 = torch.pi * o1 / 4.8
+        y2 = 2.0 * torch.atan(o2)
+        y3 = torch.pi * o3 / 0.418
+        y4 = 2.0 * torch.atan(o4)
 
-    # Bounded variables scaling
-    lam1 = torch.pi * o1 / 4.8
-    lam2 = torch.pi * o2 / 0.418
-
-    # Unbounded variables scaling via arctan
-    lam3 = 2.0 * torch.atan(o3)
-    lam4 = 2.0 * torch.atan(o4)
-
-    return torch.stack([lam1, lam2, lam3, lam4], dim=1)
+        return torch.stack([y1, y2, y3, y4], dim=1)
+    
+    def _acrobot(self, obs):
+        o1, o2, o3, o4, o5, o6 = obs[:, 0], obs[:, 1], obs[:, 2], obs[:, 3], obs[:, 4], obs[:, 5]
+        
+        y1 = torch.pi * o1
+        y2 = torch.pi * o2
+        y3 = torch.pi * o3
+        y4 = torch.pi * o4
+        y5 = o5 / 4.0
+        y6 = o6 / 9.0
+        
+        return torch.stack([y1, y2, y3, y4, y5, y6], dim=1)
+    
+    def _lunarlander(self, obs):
+        o1, o2, o3, o4, o5, o6, o7, o8 = obs[:, 0], obs[:, 1], obs[:, 2], obs[:, 3], obs[:, 4], obs[:, 5], obs[:, 6], obs[:, 7]
+        
+        y1 = torch.pi * o1 / 2.5
+        y2 = torch.pi * o2 / 2.5
+        y3 = torch.pi * o3 / 10.0
+        y4 = torch.pi * o4 / 10.0
+        y5 = o5 / 2.0
+        y6 = torch.pi * o6 / 10.0
+        y7 = torch.pi * o7
+        y8 = torch.pi * o8
+        
+        return torch.stack([y1, y2, y3, y4, y5, y6, y7, y8], dim=1)
+        
 
 class VQC(nn.Module):
     """
-    RX -> CNOT -> RZ-RY-RZ -> Measure
+    RX -> CNOT -> RZ-RY-RZ -> Measurement
     """
     def __init__(self, n_qubits=4, layers=2, device = None):
         super().__init__()
