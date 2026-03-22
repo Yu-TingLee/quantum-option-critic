@@ -33,7 +33,9 @@ def run(args):
         Qoption_value=args.Qoption_value,
         Qterm=args.Qterm,
         Qoption_policies=args.Qoption_policies,
-        Qhead_affine=args.Qhead_affine
+        Qhead_affine=args.Qhead_affine,
+        no_scaling=args.no_scaling,
+        no_entanglement=args.no_entanglement,
     )
     
     print_param(option_critic)
@@ -58,6 +60,8 @@ def run(args):
         tags += "AO"               # Option-Value, Affine Transformed
     if args.Qterm:  tags += "T"    # Terminations
     if args.Qoption_policies:  tags += "P"  # Intra-Option Policies
+    if args.no_scaling:       tags += "_fixLam"
+    if args.no_entanglement:  tags += "_noEntangle"
     
     if tags:
         run_config = f"Hybrid_{tags}" 
@@ -190,5 +194,9 @@ if __name__ == "__main__":
     parser.add_argument("--Qhead_affine", action="store_true", help="Use weight and bias in option-value head")
     parser.add_argument("--layer_F", type=int, default=6, help="Number of layers in feature trunk")
     parser.add_argument("--layer_H", type=int, default=1, help="Number of layers in heads")
+
+    # Ablation flags
+    parser.add_argument("--no_scaling", action="store_true", help="Fix lambda=1 (removes scaling params from gradient graph)")
+    parser.add_argument("--no_entanglement", action="store_true", help="Remove CNOT gates (rotation-only ansatz)")
 
     run(parser.parse_args())

@@ -61,20 +61,29 @@ class VQC(nn.Module):
     """
     lambda*RX -> CNOT -> RZ-RY-RZ -> Measurement
     """
-    def __init__(self, n_qubits=4, layers=1, device = None):
+    def __init__(self, n_qubits=4, layers=1, device=None,
+                 no_scaling=False, no_entanglement=False):
         super().__init__()
         self.n_qubits = n_qubits
         self.layers = layers
         self.device = device
-        
+        self.no_scaling = no_scaling
+        self.no_entanglement = no_entanglement
+
         self.theta = nn.Parameter(
             0.01 * torch.randn(self.layers, self.n_qubits, 2, dtype=torch.float32, device=self.device)
         )
-        
-        self.lam = nn.Parameter(
-            torch.ones(self.layers, self.n_qubits, dtype=torch.float32, device=self.device)
-        )
-        
+
+        if no_scaling:
+            self.register_buffer(
+                'lam',
+                torch.ones(self.layers, self.n_qubits, dtype=torch.float32)
+            )
+        else:
+            self.lam = nn.Parameter(
+                torch.ones(self.layers, self.n_qubits, dtype=torch.float32, device=self.device)
+            )
+
         self.qdev = qml.device("default.qubit", wires=self.n_qubits)
         self._build_qnode()
 
@@ -85,9 +94,10 @@ class VQC(nn.Module):
                 # Encoding/re-upload
                 for q in range(self.n_qubits):
                     qml.RX(lam[l, q] * inputs[..., q], wires=q)
-                # CNOT entanglement
-                for q in range(self.n_qubits):
-                    qml.CNOT(wires=[q, (q + 1) % self.n_qubits])
+                # CNOT entanglement (when no_entanglement is False)
+                if not self.no_entanglement:
+                    for q in range(self.n_qubits):
+                        qml.CNOT(wires=[q, (q + 1) % self.n_qubits])
 
                 # Trainable RZ-RY-RZ block
                 for q in range(self.n_qubits):

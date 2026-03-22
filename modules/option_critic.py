@@ -22,7 +22,9 @@ class OptionCriticFeatures(nn.Module):
                 Qoption_value=False,
                 Qterm=False,
                 Qoption_policies=False,
-                Qhead_affine=False):
+                Qhead_affine=False,
+                no_scaling=False,
+                no_entanglement=False):
 
         super(OptionCriticFeatures, self).__init__()
 
@@ -40,9 +42,12 @@ class OptionCriticFeatures(nn.Module):
         self.Qoption_value = Qoption_value
         self.Qterm = Qterm
         self.Qoption_policies = Qoption_policies
-        
+        self.no_scaling = no_scaling
+        self.no_entanglement = no_entanglement
+
         if self.Qfeats:
-            self.features = QuantumFeatureTrunk(layers = layer_F, n_qubits=n_qubits, env_name=env_name)
+            self.features = QuantumFeatureTrunk(layers=layer_F, n_qubits=n_qubits, env_name=env_name,
+                                                no_scaling=no_scaling, no_entanglement=no_entanglement)
         else:
             self.features = nn.Sequential(
                 nn.Linear(in_features, 8),
@@ -51,7 +56,8 @@ class OptionCriticFeatures(nn.Module):
             )
                     
         if self.Qoption_value:
-            self.option_value = QuantumHead(layers = layer_H, out_dim = num_options, Qhead_affine=Qhead_affine, n_qubits=n_qubits)
+            self.option_value = QuantumHead(layers=layer_H, out_dim=num_options, Qhead_affine=Qhead_affine, n_qubits=n_qubits,
+                                            no_scaling=no_scaling, no_entanglement=no_entanglement)
         elif env_name in ['CartPole-v1']:
             self.option_value = nn.Linear(in_features, num_options)
         else:
@@ -62,7 +68,8 @@ class OptionCriticFeatures(nn.Module):
             )
 
         if self.Qterm:
-            self.terminations = QuantumHead(layers = layer_H, out_dim = num_options, n_qubits=n_qubits)
+            self.terminations = QuantumHead(layers=layer_H, out_dim=num_options, n_qubits=n_qubits,
+                                            no_scaling=no_scaling, no_entanglement=no_entanglement)
         elif env_name in ['CartPole-v1']:
             self.terminations = nn.Linear(in_features, num_options)
         else:
@@ -74,7 +81,8 @@ class OptionCriticFeatures(nn.Module):
             
         if self.Qoption_policies:
             self.option_policies = nn.ModuleList([
-                QuantumHead(layers = layer_H, out_dim = num_actions, n_qubits=n_qubits) for _ in range(num_options)
+                QuantumHead(layers=layer_H, out_dim=num_actions, n_qubits=n_qubits,
+                            no_scaling=no_scaling, no_entanglement=no_entanglement) for _ in range(num_options)
             ])
         elif env_name in ['CartPole-v1']:
             self.option_policies = nn.ModuleList([
@@ -187,11 +195,13 @@ class QuantumFeatureTrunk(nn.Module):
     """
     obs -> preprocess_obs -> VQC -> (B,4)
     """
-    def __init__(self, layers = 6, n_qubits = 4, env_name = None):
+    def __init__(self, layers=6, n_qubits=4, env_name=None,
+                 no_scaling=False, no_entanglement=False):
         super().__init__()
         self.device = torch.device("cpu")
         self.preprocessor = Preprocessor(env_name)
-        self.vqc = VQC(n_qubits, layers, self.device)
+        self.vqc = VQC(n_qubits, layers, self.device,
+                       no_scaling=no_scaling, no_entanglement=no_entanglement)
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
         if obs.dim() == 1:
@@ -207,10 +217,12 @@ class QuantumHead(nn.Module):
     """
     states(in_dim) ->  VQC -> (B, out_dim)
     """
-    def __init__(self, n_qubits = 4, layers = 1, out_dim = 2, Qhead_affine=False):
+    def __init__(self, n_qubits=4, layers=1, out_dim=2, Qhead_affine=False,
+                 no_scaling=False, no_entanglement=False):
         super().__init__()
         self.device = torch.device("cpu")
-        self.vqc = VQC(n_qubits, layers, self.device)
+        self.vqc = VQC(n_qubits, layers, self.device,
+                       no_scaling=no_scaling, no_entanglement=no_entanglement)
         self.out_dim = out_dim
         self.Qhead_affine = Qhead_affine
         
