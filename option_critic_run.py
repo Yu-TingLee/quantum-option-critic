@@ -1,4 +1,7 @@
 from copy import deepcopy
+from pathlib import Path
+import pennylane as qml
+import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 import torch
@@ -8,7 +11,7 @@ from modules.option_critic import OptionCriticFeatures
 from modules.experience_replay import ReplayBuffer
 from modules.option_critic import critic_loss as critic_loss_fn
 from modules.option_critic import actor_loss as actor_loss_fn
-from utils import make_env, to_tensor, plot_circuits, print_param
+from utils import make_env, to_tensor, print_param, plot_circuits
 from logger import Logger
 
 import logging
@@ -21,13 +24,15 @@ def run(args):
     option_critic = OptionCriticFeatures(
         in_features=env.observation_space.shape[0],
         num_actions=env.action_space.n,
+        layer_F = args.layer_F,
+        layer_H = args.layer_H,
         env_name = args.env,
         n_qubits = env.observation_space.shape[0],
         num_options=args.num_options,
         Qfeats=args.Qfeats,
-        Qhead=args.Qhead,
+        Qoption_value=args.Qoption_value,
         Qterm=args.Qterm,
-        Qoption=args.Qoption,
+        Qoption_policies=args.Qoption_policies,
         Qhead_affine=args.Qhead_affine
     )
     
@@ -47,12 +52,12 @@ def run(args):
     
     tags = ""
     if args.Qfeats: tags += "F"    # Features
-    if args.Qhead and not args.Qhead_affine:  
+    if args.Qoption_value and not args.Qhead_affine:  
         tags += "O"                # Option-Value Head
-    elif args.Qhead and args.Qhead_affine:
+    elif args.Qoption_value and args.Qhead_affine:
         tags += "AO"               # Option-Value, Affine Transformed
     if args.Qterm:  tags += "T"    # Terminations
-    if args.Qoption:  tags += "P"  # Intra-Option Policies
+    if args.Qoption_policies:  tags += "P"  # Intra-Option Policies
     
     if tags:
         run_config = f"Hybrid_{tags}" 
@@ -123,6 +128,9 @@ def run(args):
 
                 optim.zero_grad()
                 loss.backward()
+                # log VQC gradient
+                if steps % 100 == 0:
+                    logger.log_gradients(steps, option_critic)
                 optim.step()
 
                 if steps % args.freeze_interval == 0:
@@ -137,15 +145,15 @@ def run(args):
             obs = next_obs
 
             # Extract affine trans. parameters if they exist
-            q_weight = None
-            q_bias = None
+            option_value_weight = None
+            option_value_bias = None
             if args.Qhead_affine:
                 # Detach from graph and convert to numpy array
-                q_weight = option_critic.Q.weight.detach().cpu().numpy()
-                q_bias = option_critic.Q.bias.detach().cpu().numpy()
+                option_value_weight = option_critic.option_value.weight.detach().cpu().numpy()
+                option_value_bias = option_critic.option_value.bias.detach().cpu().numpy()
 
             logger.log_data(steps, actor_loss, critic_loss, entropy.item(), epsilon, 
-                            qhead_weight=q_weight, qhead_bias=q_bias)
+                            option_value_weight=option_value_weight, option_value_bias=option_value_bias)
         option_lengths[current_option].append(curr_op_len)
         print(f"Total Steps: {steps} | Episode: {logger.n_eps} | Return: {rewards:.2f} | Epsilon: {epsilon:.4f}")
         logger.log_episode(steps, rewards, option_lengths, ep_steps, epsilon)
@@ -176,9 +184,11 @@ if __name__ == "__main__":
     
     # Quantum Flags
     parser.add_argument("--Qfeats", action="store_true", help="Use VQC as feature trunk")
-    parser.add_argument("--Qhead", action="store_true", help="Use VQC as Q-head")
+    parser.add_argument("--Qoption-value", action="store_true", help="Use VQC as option-value function")
     parser.add_argument("--Qterm", action="store_true", help="Use VQC as termination head")
-    parser.add_argument("--Qoption", action="store_true", help="Use VQC as intra-option policies")
-    parser.add_argument("--Qhead_affine", action="store_true", help="Use weight and bias in option-value head")
-    
+    parser.add_argument("--Qoption-policies", action="store_true", help="Use VQC as intra-option policies")
+    parser.add_argument("--Qhead-affine", action="store_true", help="Use weight and bias in option-value head")
+    parser.add_argument("--layer_F", type=int, default=6, help="Number of layers in feature trunk")
+    parser.add_argument("--layer_H", type=int, default=1, help="Number of layers in heads")
+
     run(parser.parse_args())

@@ -35,8 +35,8 @@ class Logger:
         for option, lens in option_lengths.items():
             avg_len = float(np.mean(lens)) if len(lens) > 0 else 0.0
             active = float(sum(lens) / ep_steps) if ep_steps > 0 else 0.0
-            logging.info(f"option_{option}_avg_length={avg_len}")
-            logging.info(f"option_{option}_active={active}")
+            # logging.info(f"option_{option}_avg_length={avg_len}")
+            # logging.info(f"option_{option}_active={active}")
 
         # tensorboard
         self.writer.add_scalar("episodic_rewards", reward, self.n_eps)
@@ -45,7 +45,7 @@ class Logger:
             self.writer.add_scalar(f"option_{option}_avg_length", np.mean(lens) if len(lens) > 0 else 0, self.n_eps)
             self.writer.add_scalar(f"option_{option}_active", (sum(lens) / ep_steps) if ep_steps > 0 else 0, self.n_eps)
 
-    def log_data(self, step, actor_loss, critic_loss, entropy, epsilon, qhead_weight=None, qhead_bias=None):
+    def log_data(self, step, actor_loss, critic_loss, entropy, epsilon, option_value_weight=None, option_value_bias=None):
         # tensorboard
         if actor_loss is not None:
             self.writer.add_scalar("actor_loss", actor_loss.item(), step)
@@ -53,10 +53,16 @@ class Logger:
             self.writer.add_scalar("critic_loss", critic_loss.item(), step)
         self.writer.add_scalar("policy_entropy", entropy, step)
         self.writer.add_scalar("epsilon", epsilon, step)
-        if qhead_weight is not None:
-            for i, val in enumerate(qhead_weight[0]):
-                self.writer.add_scalar(f"Qhead_scaling_a/option_{i}", val, step)
+        if option_value_weight is not None:
+            for i, val in enumerate(option_value_weight[0]):
+                self.writer.add_scalar(f"Qoption_value_scaling_a/option_{i}", val, step)
         
-        if qhead_bias is not None:
-            for i, val in enumerate(qhead_bias[0]):
-                self.writer.add_scalar(f"Qhead_bias_b/option_{i}", val, step)
+        if option_value_bias is not None:
+            for i, val in enumerate(option_value_bias[0]):
+                self.writer.add_scalar(f"Qoption_value_b/option_{i}", val, step)
+                
+    def log_gradients(self, step, model):
+        for name, param in model.named_parameters():
+            if param.requires_grad and param.grad is not None:
+                clean_name = name.replace('.', '/')
+                self.writer.add_scalar(f"Gradients_VQC/{clean_name}", param.grad.norm().item(), step)

@@ -59,21 +59,20 @@ def print_param(model):
         if is_q:
             n_qubits, layers, n_vqcs = vqc_meta(module)
         return (name, type_str(is_q), count(module), n_qubits, layers, n_vqcs)
-
     rows = [
         row("Feature Trunk", model.Qfeats, model.features),
-        row("Option-Value Function", model.Qhead, model.Q),
+        row("Option-Value Function", model.Qoption_value, model.option_value),
         row("Terminations", model.Qterm, model.terminations),
-        row("Intra-Option Policies", model.Qoption, model.option_policies),
+        row("Intra-Option Policies", model.Qoption_policies, model.option_policies),
     ]
 
     print("-" * 72)
     print(f"Whole model trainable parameters: {total_params}")
-    print(f"{'Component':<22} | {'Type':<12} | {'Params':<6} | {'Qubits':<6} | {'Layers':<6} | {'#VQCs':<5}")
+    print(f"{'Component':<22} | {'Type':<12} | {'Params':<6} | {'Qubits':<6} | {'Layers':<6}")
     print("-" * 72)
 
     for name, typ, params, n_qubits, layers, n_vqcs in rows:
-        print(f"{name:<22} | {typ:<12} | {params:<6} | {str(n_qubits):<6} | {str(layers):<6} | {str(n_vqcs):<5}")
+        print(f"{name:<22} | {typ:<12} | {params:<6} | {str(n_qubits):<6} | {str(layers):<6}")
 
     print("-" * 72)
 
@@ -82,7 +81,7 @@ def plot_circuits(model, obs_shape, device, env_name = None, save_dir="plots"):
     qml.drawer.use_style("black_white")
 
     def save(vqc, x, name):
-        fig, ax = qml.draw_mpl(vqc.circuit)(x, vqc.theta)
+        fig, ax = qml.draw_mpl(vqc.circuit)(x, vqc.theta, vqc.lam)
         fig.savefig(f"{save_dir}/{name}.png", dpi=300, bbox_inches="tight")
         plt.close(fig)
         print(f"Saved {save_dir}/{name}.png")
@@ -97,9 +96,9 @@ def plot_circuits(model, obs_shape, device, env_name = None, save_dir="plots"):
         any_vqc = True
         save(model.features.vqc, head_x(model.features.vqc), f"circuit_Qfeats_{env_name}")
 
-    if hasattr(model.Q, "vqc"):
+    if hasattr(model.option_value, "vqc"):
         any_vqc = True
-        save(model.Q.vqc, head_x(model.Q.vqc), f"circuit_Qhead_{env_name}")
+        save(model.option_value.vqc, head_x(model.option_value.vqc), f"circuit_option_value_{env_name}")
 
     if hasattr(model.terminations, "vqc"):
         any_vqc = True
@@ -107,7 +106,7 @@ def plot_circuits(model, obs_shape, device, env_name = None, save_dir="plots"):
 
     if len(model.option_policies) > 0 and hasattr(model.option_policies[0], "vqc"):
         any_vqc = True
-        save(model.option_policies[0].vqc, head_x(model.option_policies[0].vqc), f"circuit_Qoption_{env_name}")
+        save(model.option_policies[0].vqc, head_x(model.option_policies[0].vqc), f"circuit_Qoption_policies_{env_name}")
 
     if not any_vqc:
         print("No VQC modules found to plot.")

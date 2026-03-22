@@ -59,7 +59,7 @@ class Preprocessor(nn.Module):
     
 class VQC(nn.Module):
     """
-    RX -> CNOT -> RZ-RY-RZ -> lambda*RX -> Measurement
+    lambda*RX -> CNOT -> RZ-RY-RZ -> Measurement
     """
     def __init__(self, n_qubits=4, layers=1, device = None):
         super().__init__()
