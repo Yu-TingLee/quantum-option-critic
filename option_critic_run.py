@@ -184,10 +184,10 @@ if __name__ == "__main__":
     
     # Quantum Flags
     parser.add_argument("--Qfeats", action="store_true", help="Use VQC as feature trunk")
-    parser.add_argument("--Qoption-value", action="store_true", help="Use VQC as option-value function")
+    parser.add_argument("--Qoption_value", action="store_true", help="Use VQC as option-value function")
     parser.add_argument("--Qterm", action="store_true", help="Use VQC as termination head")
-    parser.add_argument("--Qoption-policies", action="store_true", help="Use VQC as intra-option policies")
-    parser.add_argument("--Qhead-affine", action="store_true", help="Use weight and bias in option-value head")
+    parser.add_argument("--Qoption_policies", action="store_true", help="Use VQC as intra-option policies")
+    parser.add_argument("--Qhead_affine", action="store_true", help="Use weight and bias in option-value head")
     parser.add_argument("--layer_F", type=int, default=6, help="Number of layers in feature trunk")
     parser.add_argument("--layer_H", type=int, default=1, help="Number of layers in heads")
 
