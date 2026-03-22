@@ -56,19 +56,23 @@ class Preprocessor(nn.Module):
         
         return torch.stack([y1, y2, y3, y4, y5, y6, y7, y8], dim=1)
         
-
+    
 class VQC(nn.Module):
     """
-    RX -> CNOT -> RZ-RY-RZ -> Measurement
+    RX -> CNOT -> RZ-RY-RZ -> lambda*RX -> Measurement
     """
-    def __init__(self, n_qubits=4, layers=2, device = None):
+    def __init__(self, n_qubits=4, layers=1, device = None):
         super().__init__()
         self.n_qubits = n_qubits
         self.layers = layers
         self.device = device
         
         self.theta = nn.Parameter(
-            0.01 * torch.randn(self.layers, self.n_qubits, 3, dtype=torch.float32, device=self.device)
+            0.01 * torch.randn(self.layers, self.n_qubits, 2, dtype=torch.float32, device=self.device)
+        )
+        
+        self.lam = nn.Parameter(
+            torch.ones(self.layers, self.n_qubits, dtype=torch.float32, device=self.device)
         )
         
         self.qdev = qml.device("default.qubit", wires=self.n_qubits)
@@ -76,25 +80,23 @@ class VQC(nn.Module):
 
     def _build_qnode(self):
         @qml.qnode(self.qdev, interface="torch", diff_method="backprop")
-        def circuit(inputs, theta):
-            # Encoding layer
-            for q in range(self.n_qubits):
-                qml.RX(inputs[..., q], wires=q)
-
+        def circuit(inputs, theta, lam):
             for l in range(self.layers):
+                # Encoding/re-upload
+                for q in range(self.n_qubits):
+                    qml.RX(lam[l, q] * inputs[..., q], wires=q)
                 # CNOT entanglement
                 for q in range(self.n_qubits):
                     qml.CNOT(wires=[q, (q + 1) % self.n_qubits])
 
                 # Trainable RZ-RY-RZ block
                 for q in range(self.n_qubits):
-                    qml.RZ(theta[l, q, 0], wires=q)
-                    qml.RY(theta[l, q, 1], wires=q)
-                    qml.RZ(theta[l, q, 2], wires=q)
+                    qml.RY(theta[l, q, 0], wires=q)
+                    qml.RZ(theta[l, q, 1], wires=q)
 
             return [qml.expval(qml.PauliZ(q)) for q in range(self.n_qubits)]
         self.circuit = circuit
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        exp_vals = self.circuit(x, self.theta)
+        exp_vals = self.circuit(x, self.theta, self.lam)
         return torch.stack([p for p in exp_vals], dim=1)

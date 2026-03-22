@@ -10,6 +10,8 @@ class OptionCriticFeatures(nn.Module):
                 in_features,
                 num_actions,
                 env_name,
+                layer_F = 6,
+                layer_H = 1,
                 n_qubits = 4,
                 num_options = 2,
                 temperature=1.0,
@@ -17,9 +19,9 @@ class OptionCriticFeatures(nn.Module):
                 eps_min=0.05,
                 eps_decay=20000,
                 Qfeats=False,
-                Qhead=False,
+                Qoption_value=False,
                 Qterm=False,
-                Qoption=False,
+                Qoption_policies=False,
                 Qhead_affine=False):
 
         super(OptionCriticFeatures, self).__init__()
@@ -35,12 +37,12 @@ class OptionCriticFeatures(nn.Module):
         self.eps_decay = eps_decay
         self.num_steps = 0
         self.Qfeats = Qfeats
-        self.Qhead = Qhead
+        self.Qoption_value = Qoption_value
         self.Qterm = Qterm
-        self.Qoption = Qoption
+        self.Qoption_policies = Qoption_policies
         
         if self.Qfeats:
-            self.features = QuantumFeatureTrunk(layers = 6, n_qubits=n_qubits, env_name=env_name)
+            self.features = QuantumFeatureTrunk(layers = layer_F, n_qubits=n_qubits, env_name=env_name)
         else:
             self.features = nn.Sequential(
                 nn.Linear(in_features, 8),
@@ -48,23 +50,43 @@ class OptionCriticFeatures(nn.Module):
                 nn.Linear(8, in_features)
             )
                     
-        if self.Qhead:
-            self.Q = QuantumHead(layers = 1, out_dim = num_options, Qhead_affine=Qhead_affine, n_qubits=n_qubits)
+        if self.Qoption_value:
+            self.option_value = QuantumHead(layers = layer_H, out_dim = num_options, Qhead_affine=Qhead_affine, n_qubits=n_qubits)
+        elif env_name in ['CartPole-v1']:
+            self.option_value = nn.Linear(in_features, num_options)
         else:
-            self.Q = nn.Linear(in_features, num_options)
+            self.option_value = nn.Sequential(
+                nn.Linear(in_features, 3),
+                nn.ReLU(),
+                nn.Linear(3, num_options)
+            )
 
         if self.Qterm:
-            self.terminations = QuantumHead(layers = 1, out_dim = num_options, n_qubits=n_qubits)
-        else:
+            self.terminations = QuantumHead(layers = layer_H, out_dim = num_options, n_qubits=n_qubits)
+        elif env_name in ['CartPole-v1']:
             self.terminations = nn.Linear(in_features, num_options)
+        else:
+            self.terminations = nn.Sequential(
+                nn.Linear(in_features, 3),
+                nn.ReLU(),
+                nn.Linear(3, num_options)
+            )
             
-        if self.Qoption:
+        if self.Qoption_policies:
             self.option_policies = nn.ModuleList([
-                QuantumHead(layers = 1, out_dim = num_actions, n_qubits=n_qubits) for _ in range(num_options)
+                QuantumHead(layers = layer_H, out_dim = num_actions, n_qubits=n_qubits) for _ in range(num_options)
+            ])
+        elif env_name in ['CartPole-v1']:
+            self.option_policies = nn.ModuleList([
+                nn.Linear(in_features, num_actions) for _ in range(num_options)
             ])
         else:
             self.option_policies = nn.ModuleList([
-                nn.Linear(in_features, num_actions) for _ in range(num_options)
+                nn.Sequential(
+                    nn.Linear(in_features, 3),
+                    nn.ReLU(),
+                    nn.Linear(3, num_actions)
+                ) for _ in range(num_options)
             ])
             
         self.to(self.device)
@@ -81,14 +103,14 @@ class OptionCriticFeatures(nn.Module):
         obs = obs.to(self.device)
         return self.features(obs)
 
-    def get_Q(self, state):
-        return self.Q(state)
+    def get_option_value(self, state):
+        return self.option_value(state)
     
     def predict_option_termination(self, state, current_option):
         termination = self.terminations(state)[:, current_option].sigmoid()
         option_termination = Bernoulli(termination).sample()
-        Q = self.get_Q(state)
-        next_option = Q.argmax(dim=-1)
+        option_value = self.get_option_value(state)
+        next_option = option_value.argmax(dim=-1)
         return bool(option_termination.item()), next_option.item()
     
     def get_terminations(self, state):
@@ -106,8 +128,8 @@ class OptionCriticFeatures(nn.Module):
         return action.item(), logp, entropy
     
     def greedy_option(self, state):
-        Q = self.get_Q(state)
-        return Q.argmax(dim=-1).item()
+        option_value = self.option_value(state)
+        return option_value.argmax(dim=-1).item()
 
     @property
     def epsilon(self):
@@ -126,15 +148,15 @@ def actor_loss(obs, option, logp, entropy, reward, done, next_obs, model, model_
     option_term_prob = model.get_terminations(state)[:, option]
     next_option_term_prob = model.get_terminations(next_state)[:, option].detach()
 
-    Q = model.get_Q(state).detach().squeeze()
-    next_Q_prime = model_prime.get_Q(next_state_prime).detach().squeeze()
+    option_value = model.get_option_value(state).detach().squeeze()
+    next_Q_prime = model_prime.get_option_value(next_state_prime).detach().squeeze()
 
     y = reward + (1 - done) * args.gamma * \
         ((1 - next_option_term_prob) * next_Q_prime[option] + next_option_term_prob  * next_Q_prime.max(dim=-1)[0])
 
-    termination_loss = option_term_prob * (Q[option].detach() - Q.max(dim=-1)[0].detach() + args.termination_reg) * (1 - done)
+    termination_loss = option_term_prob * (option_value[option].detach() - option_value.max(dim=-1)[0].detach() + args.termination_reg) * (1 - done)
     
-    policy_loss = -logp * (y.detach() - Q[option]) - args.entropy_reg * entropy
+    policy_loss = -logp * (y.detach() - option_value[option]) - args.entropy_reg * entropy
     actor_loss = termination_loss + policy_loss
     return actor_loss
 
@@ -145,11 +167,11 @@ def critic_loss(model, model_prime, data_batch, args):
     rewards   = torch.FloatTensor(rewards).to(model.device)
     masks     = 1 - torch.FloatTensor(dones).to(model.device)
 
-    states = model.get_state(to_tensor(obs)).squeeze(0)
-    Q      = model.get_Q(states)
+    states        = model.get_state(to_tensor(obs)).squeeze(0)
+    option_value  = model.get_option_value(states)
     
     next_states_prime = model_prime.get_state(to_tensor(next_obs)).squeeze(0)
-    next_Q_prime      = model_prime.get_Q(next_states_prime)
+    next_Q_prime      = model_prime.get_option_value(next_states_prime)
 
     next_states            = model.get_state(to_tensor(next_obs)).squeeze(0)
     next_termination_probs = model.get_terminations(next_states).detach()
@@ -158,7 +180,7 @@ def critic_loss(model, model_prime, data_batch, args):
     y = rewards + masks * args.gamma * \
         ((1 - next_options_term_prob) * next_Q_prime[batch_idx, options] + next_options_term_prob  * next_Q_prime.max(dim=-1)[0])
 
-    td_err = (Q[batch_idx, options] - y.detach()).pow(2).mul(0.5).mean()
+    td_err = (option_value[batch_idx, options] - y.detach()).pow(2).mul(0.5).mean()
     return td_err
 
 class QuantumFeatureTrunk(nn.Module):
