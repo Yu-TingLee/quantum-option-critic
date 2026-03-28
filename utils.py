@@ -60,7 +60,7 @@ def print_param(model):
             n_qubits, layers, n_vqcs = vqc_meta(module)
         return (name, type_str(is_q), count(module), n_qubits, layers, n_vqcs)
     rows = [
-        row("Feature Trunk", model.Qfeats, model.features),
+        row("Feature Extractor", model.Qfeats, model.features),
         row("Option-Value Function", model.Qoption_value, model.option_value),
         row("Terminations", model.Qterm, model.terminations),
         row("Intra-Option Policies", model.Qoption_policies, model.option_policies),

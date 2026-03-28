@@ -36,6 +36,7 @@ def run(args):
         Qhead_affine=args.Qhead_affine,
         no_scaling=args.no_scaling,
         no_entanglement=args.no_entanglement,
+        hidden_neuron=args.hidden_neuron,
     )
     
     print_param(option_critic)
@@ -187,16 +188,19 @@ if __name__ == "__main__":
     parser.add_argument('--entropy-reg', type=float, default=0.01)
     
     # Quantum Flags
-    parser.add_argument("--Qfeats", action="store_true", help="Use VQC as feature trunk")
+    parser.add_argument("--Qfeats", action="store_true", help="Use VQC as feature extractor")
     parser.add_argument("--Qoption_value", action="store_true", help="Use VQC as option-value function")
     parser.add_argument("--Qterm", action="store_true", help="Use VQC as termination head")
     parser.add_argument("--Qoption_policies", action="store_true", help="Use VQC as intra-option policies")
     parser.add_argument("--Qhead_affine", action="store_true", help="Use weight and bias in option-value head")
-    parser.add_argument("--layer_F", type=int, default=6, help="Number of layers in feature trunk")
-    parser.add_argument("--layer_H", type=int, default=1, help="Number of layers in heads")
+    parser.add_argument("--layer_F", type=int, default=6, help="Number of layers in feature extractor")
+    parser.add_argument("--layer_H", type=int, default=1, help="Number of layers in downstream heads")
+
+    # Classical feature extractor
+    parser.add_argument("--hidden_neuron", type=int, default=8, help="Hidden neuron count in classical feature extractor")
 
     # Ablation flags
-    parser.add_argument("--no_scaling", action="store_true", help="Fix lambda=1 (removes scaling params from gradient graph)")
+    parser.add_argument("--no_scaling", action="store_true", help="Fix lambda=1")
     parser.add_argument("--no_entanglement", action="store_true", help="Remove CNOT gates (rotation-only ansatz)")
 
     run(parser.parse_args())

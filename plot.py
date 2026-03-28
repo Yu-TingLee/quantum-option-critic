@@ -7,21 +7,29 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from collections import defaultdict
 from tensorboard.backend.event_processing import event_accumulator
+import re
 
 PLOT_ENVS = [
-    "Acrobot-v1",
+    "CartPole-v1",
+    "Acrobot-v1"
 ]
 
 PLOT_GROUPS = {
     "Group_1": [
-        "Random", "Classical-re", "Hybrid_FOTP-re", "Hybrid_FO-re", "Hybrid_FT-re", "Hybrid_FP-re"
+        "Random", "Classical", "Hybrid_FOTP", "Hybrid_FO", "Hybrid_FT", "Hybrid_FP"
     ],
     "Group_2": [
-        "Random", "Classical-re", "Hybrid_F-re", "Hybrid_O-re", "Hybrid_T-re", "Hybrid_P-re"
+        "Random", "Classical", "Hybrid_F", "Hybrid_O", "Hybrid_T", "Hybrid_P"
     ],
-    # "Options_all": [
-    #     "Classical-re", "Classical-re-3options", "Classical-re-4options", "Hybrid_P-re", "Hybrid_P-re-3options", "Hybrid_P-re-4options"
-    # ]
+    "More_Options": [
+        "Classical", "Classical-3options", "Classical-4options", "Hybrid_P", "Hybrid_P-3options", "Hybrid_P-4options"
+    ],
+    "Compare_F": [
+        "Hybrid_F", "Classical-hn32", "Classical-hn24", "Classical-hn16", "Classical"
+    ],
+    "F_ablation": [
+        "Hybrid_F", "Hybrid_F_fixLam", "Hybrid_F_noEntangle", "Hybrid_F-2layers", "Hybrid_F-3layers", "Hybrid_F-6layers", "Hybrid_F-7layers"
+    ]
 }
 
 PLOT_MODELS = {model for group in PLOT_GROUPS.values() for model in group}
@@ -135,8 +143,8 @@ for env_name in unique_envs:
         stats['avg_reward'] = stats['sum'] / stats['count']
         
         # Calculate performance relative to Classical if it exists
-        if 'Classical-re' in stats.index:
-            baseline_reward = stats.loc['Classical-re', 'avg_reward']
+        if 'Classical' in stats.index:
+            baseline_reward = stats.loc['Classical', 'avg_reward']
             stats['rel_reward'] = abs(stats['avg_reward']) / abs(baseline_reward)
             stats['rel_reward'] = stats['rel_reward'].map(lambda x: f"{x:.2f}x")
         else:
@@ -153,13 +161,12 @@ for env_name in unique_envs:
                 subset = data[data['model_name'] == model]
                 if subset.empty:
                     continue
-                display_label = model.replace("-re", "")
                 color = palette[model_list.index(model) % len(palette)]
                 
                 ax.plot(
                     subset[x_col], 
                     subset[y_col], 
-                    label=display_label, 
+                    label=model, 
                     color=color, 
                     linewidth=1.0
                 )
@@ -210,27 +217,5 @@ for env_name in unique_envs:
             x_limit=1000000,
             x_formatter=formatter
         )
-
-        # Reward vs Episode (4000)
-        # plot_group(
-        #     data=env_ep_data,
-        #     x_col='episode',
-        #     y_col='mean_smooth',
-        #     err_col='std_smooth',
-        #     filename=f"{env_name}_{group_name}_reward_vs_episode_4000.png",
-        #     x_label='Episode',
-        #     x_limit=4000
-        # )
-
-        # Reward vs Episode (2000)
-        # plot_group(
-        #     data=env_ep_data,
-        #     x_col='episode',
-        #     y_col='mean_smooth',
-        #     err_col='std_smooth',
-        #     filename=f"{env_name}_{group_name}_reward_vs_episode_2000.png",
-        #     x_label='Episode',
-        #     x_limit=2000
-        # )
 
 print("\nPlots saved to ./plots.")

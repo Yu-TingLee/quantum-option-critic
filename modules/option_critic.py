@@ -14,6 +14,7 @@ class OptionCriticFeatures(nn.Module):
                 layer_H = 1,
                 n_qubits = 4,
                 num_options = 2,
+                hidden_neuron = 8,
                 temperature=1.0,
                 eps_start=1.0,
                 eps_min=0.05,
@@ -46,13 +47,13 @@ class OptionCriticFeatures(nn.Module):
         self.no_entanglement = no_entanglement
 
         if self.Qfeats:
-            self.features = QuantumFeatureTrunk(layers=layer_F, n_qubits=n_qubits, env_name=env_name,
+            self.features = QuantumFeatureExtractor(layers=layer_F, n_qubits=n_qubits, env_name=env_name,
                                                 no_scaling=no_scaling, no_entanglement=no_entanglement)
         else:
             self.features = nn.Sequential(
-                nn.Linear(in_features, 8),
+                nn.Linear(in_features, hidden_neuron),
                 nn.ReLU(),
-                nn.Linear(8, in_features)
+                nn.Linear(hidden_neuron, in_features)
             )
                     
         if self.Qoption_value:
@@ -191,7 +192,7 @@ def critic_loss(model, model_prime, data_batch, args):
     td_err = (option_value[batch_idx, options] - y.detach()).pow(2).mul(0.5).mean()
     return td_err
 
-class QuantumFeatureTrunk(nn.Module):
+class QuantumFeatureExtractor(nn.Module):
     """
     obs -> preprocess_obs -> VQC -> (B,4)
     """

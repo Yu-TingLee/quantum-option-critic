@@ -1,17 +1,22 @@
-# A Quantum Option-Critic Architecture for Reinforcement Learning
-The is the official implementation for the paper: **A Quantum Option-Critic Architecture for Reinforcement Learning**.
-Specifically, hybrid quantum-classical agents based on the option-critic framework are implemented.
+# Quantum Hierarchical Reinforcement Learning via Variational Quantum Circuits
 
-## Overview
-- **option_critic_run.py**: Main training script for option-critic.
-- **random_run.py**: Runs random baseline.
-- **modules/**: Contains modules for VQCs, option-critic and experience replay.
-- **plot.py**: Plots learning curves (reward vs. steps; reward vs. episodes).
-- **plot_arch.py**: Plots the model architecture.
-- **utils.py**: Utilities.
+Official implementation for the paper: **Quantum Hierarchical Reinforcement Learning via Variational Quantum Circuits**.
 
-Run all the experiments:
+We implement a hybrid hierarchical RL agent based on the option-critic architecture, where each component (feature extractor, option-value function, termination functions, intra-option policies) can be instantiated as either a classical component or a variational quantum circuit (VQC). VQCs are implemented in PennyLane with a data-reuploading ansatz.
+
+## Setup
+
+```sh
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+## Run all experiments
+**⚠️ WARNING:** `run.sh` executes sequentially for simplicity. We highly recommend parallelizing these runs, or execution may take months to complete.
+
 ```sh
 bash run.sh
 ```
-Logs are saved to `runs/`; plots are saved in `plots/`.
+
+Logs go to `runs/`; plots go to `plots/`.
