@@ -2,8 +2,8 @@ import argparse
 import numpy as np
 import torch
 import time
-from utils import make_env
-from logger import Logger
+from modules.utils import make_env
+from modules.logger import Logger
 
 def run_random_baseline(args):
     env = make_env(args.env)

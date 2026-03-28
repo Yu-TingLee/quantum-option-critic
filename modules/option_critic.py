@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.distributions import Categorical, Bernoulli
 from math import exp
-from utils import to_tensor
+from modules.utils import to_tensor
 from modules.vqc import VQC, Preprocessor
 
 class OptionCriticFeatures(nn.Module):

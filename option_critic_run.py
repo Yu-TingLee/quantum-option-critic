@@ -11,8 +11,8 @@ from modules.option_critic import OptionCriticFeatures
 from modules.experience_replay import ReplayBuffer
 from modules.option_critic import critic_loss as critic_loss_fn
 from modules.option_critic import actor_loss as actor_loss_fn
-from utils import make_env, to_tensor, print_param, plot_circuits
-from logger import Logger
+from modules.utils import make_env, to_tensor, print_param, plot_circuits
+from modules.logger import Logger
 
 import logging
 logging.getLogger("pennylane").setLevel(logging.WARNING)
