@@ -13,7 +13,7 @@ pip install -r requirements.txt
 ```
 
 ## Run all experiments
-**WARNING:** `run.sh` executes sequentially for simplicity. We highly recommend parallelizing these runs, or execution may take months to complete.
+**WARNING:** `run.sh` executes sequentially for simplicity. We highly recommend parallelizing these run.
 
 ```sh
 bash run.sh
