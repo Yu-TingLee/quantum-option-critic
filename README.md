@@ -2,7 +2,8 @@
 
 Official implementation for the paper: **Quantum Hierarchical Reinforcement Learning via Variational Quantum Circuits**.
 
-We implement a hybrid hierarchical RL agent based on the option-critic architecture, where each component (feature extractor, option-value function, termination functions, intra-option policies) can be instantiated as either a classical component or a variational quantum circuit (VQC). VQCs are implemented in PennyLane with a data-reuploading ansatz.
+We implement a hybrid hierarchical RL agent based on the option-critic architecture, where each component can be instantiated as either a classical NN or a variational quantum circuit (VQC). VQCs are implemented in PennyLane with a data-reuploading ansatz.
+The classical baselines are adapted from [lweitkamp/option-critic-pytorch](https://github.com/lweitkamp/option-critic-pytorch).
 
 ## Setup
 
