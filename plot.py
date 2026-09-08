@@ -26,10 +26,13 @@ PLOT_ENVS = [
 
 PLOT_GROUPS = {
     "Group_1": [
-        "Random", "Classical", "Hybrid_FOTP", "Hybrid_FO", "Hybrid_FT", "Hybrid_FP"
+        "Random", "Classical", "Hybrid_F", "Hybrid_T", "Hybrid_FT"
     ],
     "Group_2": [
-        "Random", "Classical", "Hybrid_F", "Hybrid_O", "Hybrid_T", "Hybrid_P"
+        "Random", "Classical", "Hybrid_F", "Hybrid_P", "Hybrid_FP"
+    ],
+    "Group_3": [
+        "Random", "Classical", "Hybrid_F", "Hybrid_O", "Hybrid_FO", "Hybrid_FOTP"
     ],
     "More_Options": [
         "Classical", "Classical-3options", "Classical-4options", "Hybrid_P", "Hybrid_P-3options", "Hybrid_P-4options"
@@ -73,6 +76,10 @@ def pretty_label(model_name):
     if model_name in SPECIAL_LABELS:
         return SPECIAL_LABELS[model_name]
     return model_name.replace("_", "-")
+
+
+def pretty_env(env_name):
+    return env_name.replace("-v1", "")
 
 
 def _cache_signature(event_files, want_dynamics):
@@ -240,7 +247,7 @@ def env_ylim(env_name):
 def apply_step_axis(ax):
     ax.xaxis.set_major_locator(ticker.FixedLocator(X_TICKS))
     ax.xaxis.set_major_formatter(_step_formatter())
-    ax.xaxis.get_offset_text().set_fontsize(7)
+    ax.xaxis.get_offset_text().set_fontsize(6)
 
 
 def print_group_stats(df, env_name, group_name, model_list):
@@ -271,7 +278,7 @@ def print_group_stats(df, env_name, group_name, model_list):
     print("=" * 50 + "\n")
 
 
-def draw_reward_curves(ax, env_name, model_list, step_stats, palette):
+def draw_reward_curves(ax, env_name, model_list, step_stats, palette, legend_loc='best'):
     env_step_data = step_stats[step_stats['env_name'] == env_name]
     for model in model_list:
         subset = env_step_data[env_step_data['model_name'] == model]
@@ -286,18 +293,18 @@ def draw_reward_curves(ax, env_name, model_list, step_stats, palette):
             subset['total_steps_binned'],
             subset['mean_smooth'] - subset['std_smooth'],
             subset['mean_smooth'] + subset['std_smooth'],
-            color=color, alpha=0.25, linewidth=0
+            color=color, alpha=0.12, linewidth=0
         )
     ax.set_xlim(0, X_LIMIT)
     ax.set_ylim(*env_ylim(env_name))
-    ax.tick_params(axis='both', which='major', labelsize=7, pad=0)
-    ax.legend(loc='best', fontsize=5, framealpha=0.8)
+    ax.tick_params(axis='both', which='major', labelsize=6, pad=0)
+    ax.legend(loc=legend_loc, fontsize=4.5, framealpha=0.8)
 
 
 def _save_figure(out_dir, filename, pad=0.3):
     plt.tight_layout(pad=pad)
     path = os.path.join(out_dir, filename)
-    plt.savefig(path, dpi=600, bbox_inches='tight', pad_inches=0.02)
+    plt.savefig(path, dpi=600, bbox_inches='tight', pad_inches=0.0)
     plt.close()
     return path
 
@@ -323,6 +330,33 @@ def plot_groups_grid(df, step_stats, palette, row_groups, filename, out_dir):
     print(f"Saved grid figure: {path}")
 
 
+def plot_envs_grid(df, step_stats, palette, col_groups, filename, out_dir, env_labels=False):
+    """One env per row (CartPole top, Acrobot bottom), one group per column;
+    columns share the row's y-axis so only the leftmost panel shows y ticks.
+    With env_labels, the leftmost column is labelled with the (short) env name."""
+    _, axes = plt.subplots(
+        len(ENV_ORDER), len(col_groups),
+        figsize=(TEXT_WIDTH, 1.89 * len(ENV_ORDER)),
+        sharex=True, sharey='row'
+    )
+    for r, env_name in enumerate(ENV_ORDER):
+        for c, group_name in enumerate(col_groups):
+            ax = axes[r][c]
+            model_list = PLOT_GROUPS[group_name]
+            print_group_stats(df, env_name, group_name, model_list)
+            # Acrobot curves plateau high; park its legend in the empty
+            # lower-right corner so it does not cover the Classical curve.
+            legend_loc = 'lower right' if env_name == "Acrobot-v1" else 'best'
+            draw_reward_curves(ax, env_name, model_list, step_stats, palette, legend_loc=legend_loc)
+            if env_labels and c == 0:
+                ax.set_ylabel(pretty_env(env_name), fontsize=8)
+    for c in range(len(col_groups)):
+        apply_step_axis(axes[-1][c])
+
+    path = _save_figure(out_dir, filename)
+    print(f"Saved env-grid figure: {path}")
+
+
 def plot_group_stacked(df, step_stats, palette, group_name, filename, out_dir):
     """Single group, two envs stacked vertically (CartPole top, Acrobot bottom)."""
     model_list = PLOT_GROUPS[group_name]
@@ -333,7 +367,7 @@ def plot_group_stacked(df, step_stats, palette, group_name, filename, out_dir):
         ax = axes[r]
         print_group_stats(df, env_name, group_name, model_list)
         draw_reward_curves(ax, env_name, model_list, step_stats, palette)
-        ax.set_title(env_name, fontsize=10)
+        ax.set_title(pretty_env(env_name), fontsize=10)
     apply_step_axis(axes[-1])
 
     path = _save_figure(out_dir, filename)
@@ -397,11 +431,11 @@ def plot_option_value_bottleneck(dyn_stats, palette, out_dir, filename="analysis
                     fontsize=5, color=color, va='bottom', ha='right'
                 )
 
-        ax.set_ylabel(ylabel, fontsize=8)
+        ax.set_ylabel(ylabel, fontsize=7)
         ax.set_ylim(*ylim)
         ax.set_xlim(0, X_LIMIT)
-        ax.tick_params(axis='both', which='major', labelsize=7, pad=0)
-        ax.legend(loc='best', fontsize=4.5, framealpha=0.8, ncol=1)
+        ax.tick_params(axis='both', which='major', labelsize=6, pad=0)
+        ax.legend(loc='best', fontsize=4, framealpha=0.8, ncol=1)
 
     apply_step_axis(axes[-1])
 
@@ -429,9 +463,10 @@ def main():
     sns.set_theme(style="whitegrid")
     palette = sns.color_palette("Set1")
 
-    plot_groups_grid(
+    plot_envs_grid(
         df, step_stats, palette,
-        ["Group_1", "Group_2"], "Group_1_Group_2_reward_vs_steps.png", args.out_dir
+        ["Group_1", "Group_2", "Group_3"], "groups_reward_vs_steps.png",
+        args.out_dir, env_labels=True
     )
     plot_group_stacked(df, step_stats, palette, "More_Options", "More_Options_reward_vs_steps.png", args.out_dir)
     plot_group_stacked(df, step_stats, palette, "F_ablation", "F_ablation_reward_vs_steps.png", args.out_dir)
